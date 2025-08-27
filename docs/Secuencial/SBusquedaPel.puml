@@ -1,0 +1,102 @@
+@startuml Secuencia_Busqueda_CineScope
+!theme plain
+
+title Cine Scope - Búsqueda de Películas\nIntegración con TMDB API\nGenerado: 2025-08-23 01:44:52 UTC por ShivaAtom
+
+actor Usuario as user
+participant "Frontend SPA" as frontend
+participant "Search Service" as search
+participant "Cache Service" as cache
+participant "TMDB Service" as tmdb
+participant "TMDB API" as tmdbapi
+database "Redis Cache" as redis
+database "Local Storage" as localStorage
+
+== Búsqueda de Película ==
+
+user -> frontend : 1. Ingresa término búsqueda\n"avengers"
+activate frontend
+
+frontend -> frontend : 2. Validar input\n(mín 3 caracteres)
+
+frontend -> search : 3. searchMovies("avengers", filters)
+activate search
+
+search -> cache : 4. getCachedSearch("avengers")
+activate cache
+
+cache -> redis : 5. GET search:avengers
+activate redis
+redis --> cache : 6. null (cache miss)
+deactivate redis
+
+cache --> search : 7. null
+deactivate cache
+
+search -> tmdb : 8. searchMovies("avengers", page=1)
+activate tmdb
+
+tmdb -> tmdb : 9. Check rate limit\n(40 req/sec)
+
+tmdb -> tmdbapi : 10. GET /search/movie\n?query=avengers&page=1
+activate tmdbapi
+tmdbapi --> tmdb : 11. JSON response\n{results: [...], total_pages: 5}
+deactivate tmdbapi
+
+tmdb -> tmdb : 12. Transform data\n(normalize structure)
+
+tmdb --> search : 13. searchResults[]
+deactivate tmdb
+
+search -> cache : 14. setCachedSearch("avengers", results, 7200)
+activate cache
+
+cache -> redis : 15. SETEX search:avengers 7200 {results}
+activate redis
+redis --> cache : 16. OK
+deactivate redis
+
+cache --> search : 17. Cached
+deactivate cache
+
+search --> frontend : 18. {movies[], totalPages, currentPage}
+deactivate search
+
+frontend -> frontend : 19. Update UI state\nRender movie grid
+
+frontend -> localStorage : 20. Save recent search\n"avengers"
+activate localStorage
+localStorage --> frontend : 21. Saved
+deactivate localStorage
+
+frontend --> user : 22. Mostrar resultados\ncon paginación
+deactivate frontend
+
+== Búsqueda Subsecuente (Cache Hit) ==
+
+user -> frontend : 23. Segunda búsqueda\n"avengers"
+activate frontend
+
+frontend -> search : 24. searchMovies("avengers")
+activate search
+
+search -> cache : 25. getCachedSearch("avengers")
+activate cache
+
+cache -> redis : 26. GET search:avengers
+activate redis
+redis --> cache : 27. {cached results}
+deactivate redis
+
+cache --> search : 28. cachedResults[]
+deactivate cache
+
+search --> frontend : 29. {movies[], totalPages}\n(desde cache)
+deactivate search
+
+frontend --> user : 30. Resultados instantáneos
+deactivate frontend
+
+note over user, redis : Cache TTL: 2 horas para búsquedas\nRate limit TMDB: 40 requests/segundo\nFallback offline: localStorage
+
+@enduml

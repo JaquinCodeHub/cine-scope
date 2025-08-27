@@ -1,0 +1,301 @@
+@startuml ERD_CineScope
+!define TABLE entity
+!define PK primary_key
+!define FK foreign_key
+
+title Cine Scope - Modelo Entidad-Relación\nAplicación de Búsqueda y Gestión de Películas\nGenerado: 2025-08-23 01:23:53 UTC por ShivaAtom
+
+' ============================================================================
+' ENTIDADES PRINCIPALES DEL SISTEMA
+' ============================================================================
+
+TABLE User {
+  * user_id : UUID <<PK>>
+  --
+  * username : VARCHAR(50) <<UNIQUE>>
+  * email : VARCHAR(100) <<UNIQUE>>
+  * password_hash : VARCHAR(255)
+  * first_name : VARCHAR(50)
+  * last_name : VARCHAR(50)
+  * avatar_url : VARCHAR(255)
+  * preferred_language : VARCHAR(5) <<DEFAULT 'es'>>
+  * is_active : BOOLEAN <<DEFAULT true>>
+  * created_at : TIMESTAMP <<DEFAULT CURRENT_TIMESTAMP>>
+  * updated_at : TIMESTAMP <<DEFAULT CURRENT_TIMESTAMP>>
+  * last_login : TIMESTAMP
+}
+
+TABLE Movie {
+  * movie_id : INTEGER <<PK>>
+  --
+  * tmdb_id : INTEGER <<UNIQUE, NOT NULL>>
+  * title : VARCHAR(255) <<NOT NULL>>
+  * original_title : VARCHAR(255)
+  * overview : TEXT
+  * release_date : DATE
+  * runtime : INTEGER
+  * adult : BOOLEAN <<DEFAULT false>>
+  * original_language : VARCHAR(5)
+  * popularity : DECIMAL(8,2)
+  * vote_average : DECIMAL(3,1)
+  * vote_count : INTEGER
+  * poster_path : VARCHAR(255)
+  * backdrop_path : VARCHAR(255)
+  * budget : BIGINT
+  * revenue : BIGINT
+  * tagline : VARCHAR(500)
+  * homepage : VARCHAR(255)
+  * imdb_id : VARCHAR(20)
+  * status : VARCHAR(20)
+  * created_at : TIMESTAMP <<DEFAULT CURRENT_TIMESTAMP>>
+  * updated_at : TIMESTAMP <<DEFAULT CURRENT_TIMESTAMP>>
+}
+
+TABLE Genre {
+  * genre_id : INTEGER <<PK>>
+  --
+  * tmdb_genre_id : INTEGER <<UNIQUE, NOT NULL>>
+  * name : VARCHAR(50) <<NOT NULL>>
+  * name_es : VARCHAR(50)
+  * name_en : VARCHAR(50)
+  * is_active : BOOLEAN <<DEFAULT true>>
+  * created_at : TIMESTAMP <<DEFAULT CURRENT_TIMESTAMP>>
+}
+
+TABLE ProductionCompany {
+  * company_id : INTEGER <<PK>>
+  --
+  * tmdb_company_id : INTEGER <<UNIQUE, NOT NULL>>
+  * name : VARCHAR(255) <<NOT NULL>>
+  * logo_path : VARCHAR(255)
+  * origin_country : VARCHAR(5)
+  * created_at : TIMESTAMP <<DEFAULT CURRENT_TIMESTAMP>>
+}
+
+TABLE Country {
+  * country_id : INTEGER <<PK>>
+  --
+  * iso_3166_1 : VARCHAR(2) <<UNIQUE, NOT NULL>>
+  * name : VARCHAR(100) <<NOT NULL>>
+  * name_es : VARCHAR(100)
+  * name_en : VARCHAR(100)
+  * is_active : BOOLEAN <<DEFAULT true>>
+}
+
+TABLE Language {
+  * language_id : INTEGER <<PK>>
+  --
+  * iso_639_1 : VARCHAR(2) <<UNIQUE, NOT NULL>>
+  * name : VARCHAR(100) <<NOT NULL>>
+  * english_name : VARCHAR(100)
+  * is_active : BOOLEAN <<DEFAULT true>>
+}
+
+' ============================================================================
+' ENTIDADES DE GESTIÓN DE FAVORITOS Y LISTAS
+' ============================================================================
+
+TABLE UserFavorite {
+  * favorite_id : UUID <<PK>>
+  --
+  * user_id : UUID <<FK>>
+  * movie_id : INTEGER <<FK>>
+  * added_at : TIMESTAMP <<DEFAULT CURRENT_TIMESTAMP>>
+  * notes : TEXT
+  * rating : INTEGER <<CHECK (rating >= 1 AND rating <= 10)>>
+  * is_watched : BOOLEAN <<DEFAULT false>>
+  * watched_at : TIMESTAMP
+  --
+  <<UNIQUE (user_id, movie_id)>>
+}
+
+TABLE UserList {
+  * list_id : UUID <<PK>>
+  --
+  * user_id : UUID <<FK>>
+  * list_name : VARCHAR(100) <<NOT NULL>>
+  * description : TEXT
+  * is_public : BOOLEAN <<DEFAULT false>>
+  * is_default : BOOLEAN <<DEFAULT false>>
+  * cover_image_url : VARCHAR(255)
+  * created_at : TIMESTAMP <<DEFAULT CURRENT_TIMESTAMP>>
+  * updated_at : TIMESTAMP <<DEFAULT CURRENT_TIMESTAMP>>
+  --
+  <<UNIQUE (user_id, list_name)>>
+}
+
+TABLE UserListItem {
+  * list_item_id : UUID <<PK>>
+  --
+  * list_id : UUID <<FK>>
+  * movie_id : INTEGER <<FK>>
+  * added_at : TIMESTAMP <<DEFAULT CURRENT_TIMESTAMP>>
+  * sort_order : INTEGER <<DEFAULT 0>>
+  * personal_notes : TEXT
+  --
+  <<UNIQUE (list_id, movie_id)>>
+}
+
+' ============================================================================
+' ENTIDADES DE RELACIÓN MANY-TO-MANY
+' ============================================================================
+
+TABLE MovieGenre {
+  * movie_id : INTEGER <<FK>>
+  * genre_id : INTEGER <<FK>>
+  --
+  <<PRIMARY KEY (movie_id, genre_id)>>
+}
+
+TABLE MovieProductionCompany {
+  * movie_id : INTEGER <<FK>>
+  * company_id : INTEGER <<FK>>
+  --
+  <<PRIMARY KEY (movie_id, company_id)>>
+}
+
+TABLE MovieProductionCountry {
+  * movie_id : INTEGER <<FK>>
+  * country_id : INTEGER <<FK>>
+  --
+  <<PRIMARY KEY (movie_id, country_id)>>
+}
+
+TABLE MovieSpokenLanguage {
+  * movie_id : INTEGER <<FK>>
+  * language_id : INTEGER <<FK>>
+  --
+  <<PRIMARY KEY (movie_id, language_id)>>
+}
+
+' ============================================================================
+' ENTIDADES DE BÚSQUEDA Y CACHE
+' ============================================================================
+
+TABLE SearchHistory {
+  * search_id : UUID <<PK>>
+  --
+  * user_id : UUID <<FK>>
+  * search_query : VARCHAR(255) <<NOT NULL>>
+  * search_filters : JSON
+  * results_count : INTEGER
+  * search_timestamp : TIMESTAMP <<DEFAULT CURRENT_TIMESTAMP>>
+}
+
+TABLE MovieCache {
+  * cache_id : UUID <<PK>>
+  --
+  * tmdb_id : INTEGER <<UNIQUE, NOT NULL>>
+  * cached_data : JSON <<NOT NULL>>
+  * cache_type : VARCHAR(20) <<NOT NULL>>
+  * expires_at : TIMESTAMP <<NOT NULL>>
+  * created_at : TIMESTAMP <<DEFAULT CURRENT_TIMESTAMP>>
+  --
+  <<INDEX (tmdb_id, cache_type)>>
+}
+
+' ============================================================================
+' ENTIDADES DE CONFIGURACIÓN Y SESIÓN
+' ============================================================================
+
+TABLE UserSession {
+  * session_id : VARCHAR(128) <<PK>>
+  --
+  * user_id : UUID <<FK>>
+  * ip_address : INET
+  * user_agent : TEXT
+  * created_at : TIMESTAMP <<DEFAULT CURRENT_TIMESTAMP>>
+  * expires_at : TIMESTAMP <<NOT NULL>>
+  * is_active : BOOLEAN <<DEFAULT true>>
+}
+
+TABLE UserPreference {
+  * preference_id : UUID <<PK>>
+  --
+  * user_id : UUID <<FK>>
+  * preference_key : VARCHAR(50) <<NOT NULL>>
+  * preference_value : TEXT
+  * created_at : TIMESTAMP <<DEFAULT CURRENT_TIMESTAMP>>
+  * updated_at : TIMESTAMP <<DEFAULT CURRENT_TIMESTAMP>>
+  --
+  <<UNIQUE (user_id, preference_key)>>
+}
+
+TABLE SystemConfig {
+  * config_id : INTEGER <<PK>>
+  --
+  * config_key : VARCHAR(100) <<UNIQUE, NOT NULL>>
+  * config_value : TEXT
+  * description : VARCHAR(255)
+  * is_public : BOOLEAN <<DEFAULT false>>
+  * created_at : TIMESTAMP <<DEFAULT CURRENT_TIMESTAMP>>
+  * updated_at : TIMESTAMP <<DEFAULT CURRENT_TIMESTAMP>>
+}
+
+' ============================================================================
+' RELACIONES ENTRE ENTIDADES
+' ============================================================================
+
+' Relaciones de Usuario
+User ||--o{ UserFavorite : "tiene favoritos"
+User ||--o{ UserList : "crea listas"
+User ||--o{ SearchHistory : "realiza búsquedas"
+User ||--o{ UserSession : "mantiene sesiones"
+User ||--o{ UserPreference : "tiene preferencias"
+
+' Relaciones de Película
+Movie ||--o{ UserFavorite : "es favorita de"
+Movie ||--o{ UserListItem : "está en listas"
+Movie ||--o{ MovieGenre : "pertenece a géneros"
+Movie ||--o{ MovieProductionCompany : "producida por"
+Movie ||--o{ MovieProductionCountry : "producida en"
+Movie ||--o{ MovieSpokenLanguage : "hablada en idiomas"
+
+' Relaciones de Géneros y Catálogos
+Genre ||--o{ MovieGenre : "clasifica películas"
+ProductionCompany ||--o{ MovieProductionCompany : "produce películas"
+Country ||--o{ MovieProductionCountry : "país de producción"
+Language ||--o{ MovieSpokenLanguage : "idioma hablado"
+
+' Relaciones de Listas
+UserList ||--o{ UserListItem : "contiene películas"
+
+' ============================================================================
+' ÍNDICES PARA OPTIMIZACIÓN DE CONSULTAS
+' ============================================================================
+
+note top of Movie : **ÍNDICES DE OPTIMIZACIÓN**\nINDEX idx_movie_tmdb_id (tmdb_id)\nINDEX idx_movie_title (title)\nINDEX idx_movie_release_date (release_date)\nINDEX idx_movie_popularity (popularity DESC)\nINDEX idx_movie_vote_average (vote_average DESC)
+
+note top of UserFavorite : **ÍNDICES DE FAVORITOS**\nINDEX idx_favorite_user_movie (user_id, movie_id)\nINDEX idx_favorite_added_at (added_at DESC)\nINDEX idx_favorite_rating (rating DESC)
+
+note right of SearchHistory : **ÍNDICES DE BÚSQUEDA**\nINDEX idx_search_user_timestamp (user_id, search_timestamp DESC)\nINDEX idx_search_query (search_query)\nINDEX idx_search_timestamp (search_timestamp DESC)
+
+note bottom of MovieCache : **ÍNDICES DE CACHE**\nINDEX idx_cache_tmdb_type (tmdb_id, cache_type)\nINDEX idx_cache_expires (expires_at)\nUNIQUE idx_cache_unique (tmdb_id, cache_type)
+
+' ============================================================================
+' RESTRICCIONES Y VALIDACIONES
+' ============================================================================
+
+note left of User : **VALIDACIONES DE USUARIO**\nCHECK (email LIKE '%@%.%')\nCHECK (preferred_language IN ('es', 'en', 'fr', 'de', 'it'))\nCHECK (LENGTH(username) >= 3)\nCHECK (LENGTH(password_hash) >= 60)
+
+note right of Movie : **VALIDACIONES DE PELÍCULA**\nCHECK (vote_average >= 0 AND vote_average <= 10)\nCHECK (vote_count >= 0)\nCHECK (runtime > 0 OR runtime IS NULL)\nCHECK (popularity >= 0)
+
+note bottom of UserFavorite : **VALIDACIONES DE FAVORITOS**\nCHECK (rating >= 1 AND rating <= 10)\nCHECK (watched_at IS NULL OR watched_at >= added_at)\nCHECK (is_watched = false OR watched_at IS NOT NULL)
+
+' ============================================================================
+' TRIGGERS Y FUNCIONES AUTOMÁTICAS
+' ============================================================================
+
+note top of UserList : **TRIGGERS AUTOMÁTICOS**\nBEFORE INSERT: Validar list_name único por user\nBEFORE UPDATE: Actualizar updated_at\nAFTER DELETE: Limpiar UserListItem relacionados
+
+note top of Movie : **TRIGGERS DE PELÍCULA**\nBEFORE INSERT/UPDATE: Normalizar title\nAFTER INSERT: Crear entrada en MovieCache\nBEFORE UPDATE: Actualizar updated_at
+
+note right of MovieCache : **TRIGGERS DE CACHE**\nBEFORE INSERT: Validar JSON structure\nAFTER INSERT: Programar limpieza automática\nSCHEDULED: Limpiar cache expirado cada hora
+
+' ============================================================================
+' NOTAS ADICIONALES DEL MODELO
+' ============================================================================
+
+note bottom : **CINE SCOPE - MODELO ENTIDAD-RELACIÓN**\nOptimizado para búsqueda rápida de películas con TMDB API\nAlmacenamiento local de favoritos y listas personalizadas\nCache inteligente para reducir llamadas a API externa\nSoporte completo para múltiples idiomas y regiones\nEstructura escalable para funcionalidades futuras\nGenerado: 2025-08-23 01:23:53 UTC por ShivaAtom
+
+@enduml

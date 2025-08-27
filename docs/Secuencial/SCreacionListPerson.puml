@@ -1,0 +1,132 @@
+@startuml Secuencia_Lista_CineScope
+!theme plain
+
+title Cine Scope - Crear Lista Personalizada\nValidación y Persistencia\nGenerado: 2025-08-23 01:44:52 UTC por ShivaAtom
+
+actor Usuario as user
+participant "Create List Form" as form
+participant "List Service" as listService
+participant "Validation Service" as validation
+participant "Backend API" as api
+database "SQLite DB" as db
+database "Local Storage" as localStorage
+
+== Crear Nueva Lista ==
+
+user -> form : 1. Accede a "Nueva Lista"\nCompleta formulario
+activate form
+
+form -> form : 2. Validación frontend\n(nombre requerido, max 100 chars)
+
+user -> form : 3. Submit formulario\n{name: "Películas de Acción", description: "...", isPublic: false}
+
+form -> validation : 4. validateListData(formData)
+activate validation
+
+validation -> validation : 5. Check required fields\nValidate name length\nSanitize description
+
+validation --> form : 6. {isValid: true, sanitizedData}
+deactivate validation
+
+form -> listService : 7. createList(userId, listData)
+activate listService
+
+listService -> api : 8. POST /user/lists\n{name, description, isPublic}
+activate api
+
+api -> db : 9. Check name uniqueness\nSELECT COUNT(*) FROM user_lists\nWHERE user_id = ? AND list_name = ?
+activate db
+db --> api : 10. count: 0 (nombre único)
+deactivate db
+
+api -> db : 11. Check user list limit\nSELECT COUNT(*) FROM user_lists\nWHERE user_id = ?
+activate db
+db --> api : 12. count: 15 (< 50 límite)
+deactivate db
+
+alt Validaciones pasadas
+    api -> db : 13. BEGIN TRANSACTION
+    activate db
+    
+    api -> db : 14. INSERT INTO user_lists\n(list_id, user_id, list_name, description,\nis_public, created_at)\nVALUES (uuid, ?, ?, ?, ?, datetime('now'))
+    db --> api : 15. list_id: uuid-generated
+    
+    api -> db : 16. COMMIT TRANSACTION
+    db --> api : 17. Success
+    deactivate db
+    
+    api --> listService : 18. {success: true, listId, listData}
+    deactivate api
+    
+    listService -> localStorage : 19. Update local lists cache
+    activate localStorage
+    localStorage --> listService : 20. Cache updated
+    deactivate localStorage
+    
+    listService --> form : 21. {success: true, newList}
+    deactivate listService
+    
+    form -> form : 22. Reset form\nShow success message
+    
+    form --> user : 23. Redireccionar a\n/lists/{listId}
+    deactivate form
+    
+else Nombre duplicado
+    api -> db : 13. ROLLBACK (if needed)
+    api --> listService : 18. {error: "Nombre ya existe"}
+    listService --> form : 21. {error: "Ya tienes una lista con ese nombre"}
+    form --> user : 23. Mostrar error específico
+    
+else Límite excedido
+    api --> listService : 18. {error: "Límite de listas alcanzado"}
+    listService --> form : 21. {error: "Máximo 50 listas por usuario"}
+    form --> user : 23. Mostrar error de límite
+end
+
+== Agregar Película a Lista ==
+
+user -> form : 24. En detalle de película\nClick "Agregar a Lista"
+activate form
+
+form -> form : 25. Mostrar modal\ncon listas disponibles
+
+user -> form : 26. Selecciona lista\n"Películas de Acción"
+
+form -> listService : 27. addMovieToList(listId, movieId, notes)
+activate listService
+
+listService -> api : 28. POST /lists/{listId}/movies\n{movieId: 299536, notes: "Épica"}
+activate api
+
+api -> db : 29. Check movie not in list\nSELECT COUNT(*) FROM user_list_items\nWHERE list_id = ? AND movie_id = ?
+activate db
+db --> api : 30. count: 0 (no duplicado)
+deactivate db
+
+api -> db : 31. Check list belongs to user\nSELECT user_id FROM user_lists\nWHERE list_id = ?
+activate db
+db --> api : 32. user_id matches
+deactivate db
+
+api -> db : 33. INSERT INTO user_list_items\n(list_item_id, list_id, movie_id,\npersonal_notes, added_at)\nVALUES (uuid, ?, ?, ?, datetime('now'))
+activate db
+db --> api : 34. Success
+deactivate db
+
+api -> db : 35. UPDATE user_lists\nSET movie_count = movie_count + 1,\nupdated_at = datetime('now')\nWHERE list_id = ?
+activate db
+db --> api : 36. List updated
+deactivate db
+
+api --> listService : 37. {success: true, itemAdded}
+deactivate api
+
+listService --> form : 38. {success: true}
+deactivate listService
+
+form --> user : 39. ✅ "Agregada a lista"\nCerrar modal
+deactivate form
+
+note over user, db : Reglas de Negocio:\n- Máximo 50 listas por usuario\n- Máximo 200 películas por lista\n- Nombres únicos por usuario\n- Transacciones para consistencia
+
+@enduml

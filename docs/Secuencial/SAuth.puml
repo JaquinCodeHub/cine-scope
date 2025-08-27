@@ -1,0 +1,165 @@
+@startuml Secuencia_Autenticacion_CineScope
+!theme plain
+
+title Cine Scope - Autenticación JWT\nLogin y Gestión de Sesión\nGenerado: 2025-08-23 01:44:52 UTC por ShivaAtom
+
+actor Usuario as user
+participant "Login Form" as loginForm
+participant "Auth Service" as authService
+participant "Backend API" as api
+participant "JWT Service" as jwtService
+participant "User Service" as userService
+database "SQLite DB" as db
+database "Redis Cache" as redis
+database "Local Storage" as localStorage
+
+== Proceso de Login ==
+
+user -> loginForm : 1. Ingresa credenciales\n(username: "john", password: "***")
+activate loginForm
+
+loginForm -> loginForm : 2. Validación client-side\n(formato, campos requeridos)
+
+loginForm -> authService : 3. login(username, password)
+activate authService
+
+authService -> api : 4. POST /auth/login\n{username, password}
+activate api
+
+api -> userService : 5. validateCredentials(username, password)
+activate userService
+
+userService -> db : 6. SELECT * FROM users\nWHERE username = ? AND is_active = 1
+activate db
+db --> userService : 7. userData
+deactivate db
+
+userService -> userService : 8. bcrypt.compare(password, hash)
+
+alt Credenciales válidas
+    userService --> api : 9. {user, isValid: true}
+    deactivate userService
+    
+    api -> jwtService : 10. generateTokens(user.id, user.email)
+    activate jwtService
+    
+    jwtService -> jwtService : 11. Create access token\n(expire: 8h)
+    jwtService -> jwtService : 12. Create refresh token\n(expire: 7d)
+    
+    jwtService --> api : 13. {accessToken, refreshToken, expiresIn}
+    deactivate jwtService
+    
+    api -> redis : 14. Store session\nSET session:{userId} {sessionData}
+    activate redis
+    redis --> api : 15. Session stored
+    deactivate redis
+    
+    api -> db : 16. UPDATE users\nSET last_login = datetime('now')
+    activate db
+    db --> api : 17. Login time updated
+    deactivate db
+    
+    api --> authService : 18. {tokens, user, expiresIn}
+    deactivate api
+    
+    authService -> localStorage : 19. Store tokens securely
+    activate localStorage
+    localStorage --> authService : 20. Tokens stored
+    deactivate localStorage
+    
+    authService --> loginForm : 21. {success: true, user}
+    deactivate authService
+    
+    loginForm --> user : 22. Redireccionar a /profile\nMostrar bienvenida
+    deactivate loginForm
+    
+else Credenciales inválidas
+    userService --> api : 9. {isValid: false}
+    api --> authService : 18. {error: "Invalid credentials"}
+    authService --> loginForm : 21. {error: "Usuario o contraseña incorrectos"}
+    loginForm --> user : 22. Mostrar error
+end
+
+== Verificación de Token en Requests ==
+
+user -> loginForm : 23. Navega a página protegida\n/favorites
+activate loginForm
+
+loginForm -> authService : 24. getStoredToken()
+activate authService
+
+authService -> localStorage : 25. GET accessToken
+activate localStorage
+localStorage --> authService : 26. token
+deactivate localStorage
+
+authService -> api : 27. GET /user/favorites\nAuthorization: Bearer {token}
+activate api
+
+api -> jwtService : 28. verifyToken(token)
+activate jwtService
+
+alt Token válido y no expirado
+    jwtService --> api : 29. {valid: true, payload}
+    deactivate jwtService
+    
+    api -> redis : 30. Check session exists\nGET session:{userId}
+    activate redis
+    redis --> api : 31. sessionData
+    deactivate redis
+    
+    api --> authService : 32. {userFavorites[], success: true}
+    deactivate api
+    
+    authService --> loginForm : 33. favoritos data
+    deactivate authService
+    
+    loginForm --> user : 34. Mostrar favoritos
+    deactivate loginForm
+    
+else Token expirado o inválido
+    jwtService --> api : 29. {valid: false, expired: true}
+    api --> authService : 32. {error: "Token expired", code: 401}
+    
+    authService -> authService : 35. Attempt token refresh
+    
+    authService -> localStorage : 36. GET refreshToken
+    activate localStorage
+    localStorage --> authService : 37. refreshToken
+    deactivate localStorage
+    
+    authService -> api : 38. POST /auth/refresh\n{refreshToken}
+    activate api
+    
+    alt Refresh token válido
+        api -> jwtService : 39. verifyRefreshToken()
+        activate jwtService
+        jwtService --> api : 40. {valid: true}
+        deactivate jwtService
+        
+        api -> jwtService : 41. generateNewAccessToken()
+        activate jwtService
+        jwtService --> api : 42. newAccessToken
+        deactivate jwtService
+        
+        api --> authService : 43. {newAccessToken, expiresIn}
+        deactivate api
+        
+        authService -> localStorage : 44. Update stored token
+        activate localStorage
+        localStorage --> authService : 45. Token updated
+        deactivate localStorage
+        
+        authService -> authService : 46. Retry original request
+        
+    else Refresh token inválido
+        api --> authService : 43. {error: "Session expired"}
+        authService -> localStorage : 44. Clear all tokens
+        authService --> loginForm : 33. {requireLogin: true}
+        loginForm --> user : 34. Redireccionar a /login
+    end
+end
+
+note over user, redis : JWT Strategy:\n- Access token: 8 horas\n- Refresh token: 7 días\n- Auto-refresh transparente\n- Logout limpia session Redis
+
+@enduml

@@ -1,0 +1,114 @@
+@startuml Secuencia_Favoritos_CineScope
+!theme plain
+
+title Cine Scope - Gestión de Favoritos\nSincronización Online/Offline\nGenerado: 2025-08-23 01:44:52 UTC por ShivaAtom
+
+actor Usuario as user
+participant "Frontend" as frontend
+participant "Auth Guard" as auth
+participant "Favorites Service" as favService
+participant "Backend API" as api
+database "SQLite DB" as db
+database "Local Storage" as localStorage
+database "IndexedDB" as indexedDB
+
+== Agregar Película a Favoritos ==
+
+user -> frontend : 1. Click "❤️ Favorito"\nen película ID: 299536
+activate frontend
+
+frontend -> auth : 2. checkAuthentication()
+activate auth
+auth --> frontend : 3. {isAuth: true, userId: uuid}
+deactivate auth
+
+frontend -> localStorage : 4. Add to local favorites\nimmediately
+activate localStorage
+localStorage --> frontend : 5. Updated local state
+deactivate localStorage
+
+frontend -> frontend : 6. Update UI instantly\n(optimistic update)
+
+frontend -> indexedDB : 7. Store for offline sync
+activate indexedDB
+indexedDB --> frontend : 8. Stored locally
+deactivate indexedDB
+
+frontend --> user : 9. ❤️ Favorito agregado\n(UI feedback inmediato)
+
+== Sincronización con Backend ==
+
+frontend -> favService : 10. addToFavorites(userId, movieId)
+activate favService
+
+favService -> api : 11. POST /user/favorites\n{movieId: 299536, rating: null}
+activate api
+
+api -> db : 12. INSERT INTO user_favorites\n(user_id, movie_id, added_at)
+activate db
+db --> api : 13. favorite_id: uuid
+deactivate db
+
+api --> favService : 14. {success: true, favoriteId}
+deactivate api
+
+favService --> frontend : 15. Sync completed
+deactivate favService
+
+frontend -> indexedDB : 16. Mark as synced\nremove from pending
+activate indexedDB
+indexedDB --> frontend : 17. Sync status updated
+deactivate indexedDB
+
+deactivate frontend
+
+== Escenario Offline ==
+
+user -> frontend : 18. Agregar favorito\n(sin conexión)
+activate frontend
+
+frontend -> localStorage : 19. Add to local favorites
+activate localStorage
+localStorage --> frontend : 20. Local update
+deactivate localStorage
+
+frontend -> indexedDB : 21. Queue for sync\n{action: 'add', movieId, pending: true}
+activate indexedDB
+indexedDB --> frontend : 22. Queued for sync
+deactivate indexedDB
+
+frontend --> user : 23. ❤️ Agregado localmente\n⏳ Se sincronizará
+deactivate frontend
+
+== Sincronización al Reconectar ==
+
+frontend -> frontend : 24. Detect online event\nservice worker
+activate frontend
+
+frontend -> indexedDB : 25. Get pending sync items
+activate indexedDB
+indexedDB --> frontend : 26. pendingSyncItems[]
+deactivate indexedDB
+
+loop Por cada item pendiente
+    frontend -> favService : 27. Sync pending item
+    activate favService
+    favService -> api : 28. POST /user/favorites
+    activate api
+    api --> favService : 29. Success/Error
+    deactivate api
+    favService --> frontend : 30. Sync result
+    deactivate favService
+end
+
+frontend -> indexedDB : 31. Clear synced items
+activate indexedDB
+indexedDB --> frontend : 32. Sync queue cleared
+deactivate indexedDB
+
+frontend --> user : 33. ✅ Todo sincronizado
+deactivate frontend
+
+note over user, indexedDB : PWA Strategy:\n1. Optimistic UI updates\n2. Local storage inmediato\n3. Background sync cuando hay conexión\n4. Resolución automática de conflictos
+
+@enduml

@@ -1,0 +1,145 @@
+@startuml Secuencia_Offline_CineScope
+!theme plain
+
+title Cine Scope - Funcionalidad Offline PWA\nService Worker y Sincronización\nGenerado: 2025-08-23 01:44:52 UTC por ShivaAtom
+
+actor Usuario as user
+participant "Frontend App" as app
+participant "Service Worker" as sw
+participant "IndexedDB" as indexedDB
+participant "Cache API" as cacheAPI
+participant "Network" as network
+participant "Background Sync" as bgSync
+
+== Instalación PWA y Cache Inicial ==
+
+user -> app : 1. Primera visita\na cinescope.app
+activate app
+
+app -> sw : 2. Register service worker
+activate sw
+
+sw -> sw : 3. Install event\nCache app shell
+
+sw -> cacheAPI : 4. Cache static assets\n(CSS, JS, icons, fonts)
+activate cacheAPI
+cacheAPI --> sw : 5. Assets cached
+deactivate cacheAPI
+
+sw -> indexedDB : 6. Setup offline database\nSchema creation
+activate indexedDB
+indexedDB --> sw : 7. DB ready
+deactivate indexedDB
+
+sw --> app : 8. SW registered & active
+deactivate sw
+
+app --> user : 9. App ready\nPWA installable
+deactivate app
+
+== Uso Offline - Ver Favoritos ==
+
+user -> app : 10. Usuario va offline\nNavega a /favorites
+activate app
+
+app -> sw : 11. Fetch event\nGET /api/user/favorites
+activate sw
+
+sw -> network : 12. Try network first
+activate network
+network --> sw : 13. Network failed\n(offline)
+deactivate network
+
+sw -> indexedDB : 14. Query local favorites\nSELECT * FROM favorites\nWHERE user_id = ?
+activate indexedDB
+indexedDB --> sw : 15. favoriteMovies[]
+deactivate indexedDB
+
+sw -> cacheAPI : 16. Get cached movie posters\nfor favoriteMovies
+activate cacheAPI
+cacheAPI --> sw : 17. cachedImages[]
+deactivate cacheAPI
+
+sw --> app : 18. Offline data response\n{favorites, images}
+deactivate sw
+
+app -> app : 19. Render favorites\nShow offline indicator
+
+app --> user : 20. ⚡ Favoritos disponibles\n(modo offline)
+deactivate app
+
+== Acción Offline - Agregar Favorito ==
+
+user -> app : 21. Agrega nueva película\na favoritos (offline)
+activate app
+
+app -> app : 22. Optimistic UI update\nShow immediately
+
+app -> indexedDB : 23. Store favorite locally\nINSERT INTO pending_sync
+activate indexedDB
+indexedDB --> app : 24. Stored with pending flag
+deactivate indexedDB
+
+app -> indexedDB : 25. Add to local favorites\nfor immediate access
+activate indexedDB
+indexedDB --> app : 26. Local favorite added
+deactivate indexedDB
+
+app --> user : 27. ❤️ Favorito agregado\n⏳ Se sincronizará
+deactivate app
+
+== Reconexión y Sincronización ==
+
+user -> app : 28. Conexión restaurada\n(online event)
+activate app
+
+app -> sw : 29. Online event\nTrigger background sync
+activate sw
+
+sw -> bgSync : 30. Background sync event\n'sync-favorites'
+activate bgSync
+
+bgSync -> indexedDB : 31. Get pending sync items\nSELECT * FROM pending_sync
+activate indexedDB
+indexedDB --> bgSync : 32. pendingActions[]
+deactivate indexedDB
+
+loop Para cada acción pendiente
+    bgSync -> network : 33. POST /api/user/favorites\n{movieId, action: 'add'}
+    activate network
+    network --> bgSync : 34. {success: true, serverId}
+    deactivate network
+    
+    bgSync -> indexedDB : 35. Update local record\nUPDATE favorites SET synced = 1
+    activate indexedDB
+    indexedDB --> bgSync : 36. Updated
+    deactivate indexedDB
+end
+
+bgSync -> indexedDB : 37. Clear pending sync\nDELETE FROM pending_sync
+activate indexedDB
+indexedDB --> bgSync : 38. Pending cleared
+deactivate indexedDB
+
+bgSync --> sw : 39. Sync completed
+deactivate bgSync
+
+sw -> app : 40. Sync success event
+deactivate sw
+
+app -> app : 41. Update UI\nRemove sync indicators
+
+app --> user : 42. ✅ Todo sincronizado\nDatos actualizados
+deactivate app
+
+== Estrategia de Cache ==
+
+note over sw, cacheAPI : **CACHE STRATEGY**\n\nApp Shell: Cache First\nAPI Data: Network First → Cache\nImages (TMDB): Cache First → Network\nUser Data: IndexedDB\nPending Actions: IndexedDB + Background Sync
+
+note over indexedDB : **OFFLINE DATA STRUCTURE**\n\nfavorites: {id, movie_id, user_id, synced}\nlists: {id, name, user_id, synced}\nlist_items: {id, list_id, movie_id, synced}\npending_sync: {id, action, data, timestamp}\ncached_movies: {tmdb_id, data, expires}
+
+note over bgSync : **BACKGROUND SYNC**\n\nTriggers:\n- Online event\n- Page visibility change\n- User action after reconnect\n\nRetry Policy:\n- Exponential backoff\n- Max 3 retries\n- Conflict resolution
+
+note bottom : PWA Capabilities:\n- Offline browsing de favoritos\n- Sincronización automática\n- Cache inteligente de imágenes\n- Background sync de acciones\n- Optimistic UI updates
+
+@enduml

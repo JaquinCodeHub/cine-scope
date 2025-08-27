@@ -1,0 +1,316 @@
+@startuml CasosUso_CineScope
+!theme plain
+
+title Cine Scope - Diagrama de Casos de Uso\nAplicación de Búsqueda y Gestión de Películas\nGenerado: 2025-08-23 01:41:17 UTC por ShivaAtom
+
+' ============================================================================
+' ACTORES DEL SISTEMA
+' ============================================================================
+
+:Usuario Anónimo: as guest
+:Usuario Registrado: as user
+:Administrador: as admin
+:Sistema TMDB: as tmdb
+:Sistema Email: as email
+
+' ============================================================================
+' CASOS DE USO - MÓDULO BÚSQUEDA Y EXPLORACIÓN
+' ============================================================================
+
+package "Búsqueda y Exploración de Películas" {
+    
+    (Buscar películas por título) as UC001
+    (Aplicar filtros avanzados) as UC002
+    (Ver películas populares) as UC003
+    (Ver películas mejor valoradas) as UC004
+    (Ver películas en cartelera) as UC005
+    (Ver próximos estrenos) as UC006
+    (Explorar por géneros) as UC007
+    (Ver detalles de película) as UC008
+    (Ver reparto y equipo) as UC009
+    (Ver imágenes y trailers) as UC010
+    (Ver reseñas y críticas) as UC011
+    (Ver películas similares) as UC012
+    (Obtener recomendaciones) as UC013
+    (Guardar historial de búsqueda) as UC014
+    
+    note right of UC001 : Búsqueda principal con autocompletado\ny sugerencias en tiempo real
+    note right of UC002 : Filtros por año, género, puntuación,\nduración y más parámetros
+    note right of UC008 : Información completa: sinopsis,\nfecha, duración, presupuesto, etc.
+}
+
+' ============================================================================
+' CASOS DE USO - MÓDULO GESTIÓN DE FAVORITOS
+' ============================================================================
+
+package "Gestión de Favoritos" {
+    
+    (Agregar película a favoritos) as UC015
+    (Quitar película de favoritos) as UC016
+    (Ver lista de favoritos) as UC017
+    (Calificar película favorita) as UC018
+    (Agregar notas personales) as UC019
+    (Marcar como vista/no vista) as UC020
+    (Filtrar favoritos por género) as UC021
+    (Ordenar lista de favoritos) as UC022
+    (Exportar lista de favoritos) as UC023
+    (Ver estadísticas de favoritos) as UC024
+    (Buscar en favoritos) as UC025
+    
+    note right of UC018 : Puntuación personal de 1 a 10\nindependiente de TMDB
+    note right of UC019 : Notas privadas del usuario\nsobre la película
+    note right of UC024 : Géneros favoritos, tiempo total,\npromedios y tendencias
+}
+
+' ============================================================================
+' CASOS DE USO - MÓDULO LISTAS PERSONALIZADAS
+' ============================================================================
+
+package "Listas Personalizadas" {
+    
+    (Crear lista personalizada) as UC026
+    (Editar información de lista) as UC027
+    (Eliminar lista) as UC028
+    (Agregar película a lista) as UC029
+    (Quitar película de lista) as UC030
+    (Reordenar películas en lista) as UC031
+    (Ver todas las listas) as UC032
+    (Buscar en listas) as UC033
+    (Hacer lista pública/privada) as UC034
+    (Compartir lista por enlace) as UC035
+    (Duplicar lista existente) as UC036
+    (Ver listas públicas) as UC037
+    
+    note right of UC026 : Listas temáticas: "Para ver",\n"Clásicos", "Acción favorita", etc.
+    note right of UC035 : Enlace para compartir lista\ncon otros usuarios
+    note right of UC037 : Explorar listas públicas\nde otros usuarios
+}
+
+' ============================================================================
+' CASOS DE USO - MÓDULO GESTIÓN DE USUARIO
+' ============================================================================
+
+package "Gestión de Usuario" {
+    
+    (Registrarse en el sistema) as UC038
+    (Iniciar sesión) as UC039
+    (Cerrar sesión) as UC040
+    (Recuperar contraseña) as UC041
+    (Verificar email) as UC042
+    (Ver perfil de usuario) as UC043
+    (Editar perfil) as UC044
+    (Cambiar contraseña) as UC045
+    (Cambiar foto de perfil) as UC046
+    (Configurar preferencias) as UC047
+    (Ver actividad reciente) as UC048
+    (Eliminar cuenta) as UC049
+    
+    note right of UC047 : Idioma, tema, notificaciones,\nprivacidad de listas
+    note right of UC048 : Favoritos recientes, búsquedas,\nlistas creadas/modificadas
+}
+
+' ============================================================================
+' CASOS DE USO - MÓDULO CONFIGURACIÓN Y SISTEMA
+' ============================================================================
+
+package "Configuración y Sistema" {
+    
+    (Configurar idioma de interfaz) as UC050
+    (Cambiar tema visual) as UC051
+    (Gestionar notificaciones) as UC052
+    (Ver términos y privacidad) as UC053
+    (Contactar soporte) as UC054
+    (Ver estadísticas del sistema) as UC055
+    (Gestionar cache de datos) as UC056
+    (Configurar funcionalidad offline) as UC057
+    
+    note right of UC055 : Solo para administradores:\nusuarios activos, películas más buscadas
+    note right of UC057 : PWA: datos disponibles\nsin conexión a internet
+}
+
+' ============================================================================
+' CASOS DE USO - MÓDULO ADMINISTRACIÓN
+' ============================================================================
+
+package "Administración del Sistema" {
+    
+    (Gestionar usuarios) as UC058
+    (Ver logs del sistema) as UC059
+    (Configurar parámetros globales) as UC060
+    (Gestionar cache TMDB) as UC061
+    (Monitorear performance) as UC062
+    (Generar reportes de uso) as UC063
+    (Gestionar copias de seguridad) as UC064
+    
+    note right of UC058 : Activar/desactivar usuarios,\nver estadísticas de uso
+    note right of UC061 : Limpiar cache, configurar TTL,\nmonitorear uso de API TMDB
+}
+
+' ============================================================================
+' RELACIONES DE ACTORES CON CASOS DE USO
+' ============================================================================
+
+' Usuario Anónimo - Funcionalidades básicas
+guest --> UC001
+guest --> UC002
+guest --> UC003
+guest --> UC004
+guest --> UC005
+guest --> UC006
+guest --> UC007
+guest --> UC008
+guest --> UC009
+guest --> UC010
+guest --> UC011
+guest --> UC012
+guest --> UC013
+guest --> UC037
+guest --> UC038
+guest --> UC039
+guest --> UC041
+guest --> UC053
+
+' Usuario Registrado - Funcionalidades completas
+user --> UC001
+user --> UC002
+user --> UC003
+user --> UC004
+user --> UC005
+user --> UC006
+user --> UC007
+user --> UC008
+user --> UC009
+user --> UC010
+user --> UC011
+user --> UC012
+user --> UC013
+user --> UC014
+user --> UC015
+user --> UC016
+user --> UC017
+user --> UC018
+user --> UC019
+user --> UC020
+user --> UC021
+user --> UC022
+user --> UC023
+user --> UC024
+user --> UC025
+user --> UC026
+user --> UC027
+user --> UC028
+user --> UC029
+user --> UC030
+user --> UC031
+user --> UC032
+user --> UC033
+user --> UC034
+user --> UC035
+user --> UC036
+user --> UC037
+user --> UC040
+user --> UC042
+user --> UC043
+user --> UC044
+user --> UC045
+user --> UC046
+user --> UC047
+user --> UC048
+user --> UC049
+user --> UC050
+user --> UC051
+user --> UC052
+user --> UC054
+user --> UC057
+
+' Administrador - Funcionalidades de gestión
+admin --> UC055
+admin --> UC058
+admin --> UC059
+admin --> UC060
+admin --> UC061
+admin --> UC062
+admin --> UC063
+admin --> UC064
+
+' ============================================================================
+' RELACIONES CON SISTEMAS EXTERNOS
+' ============================================================================
+
+' Casos de uso que requieren TMDB API
+UC001 --> tmdb : <<include>>
+UC002 --> tmdb : <<include>>
+UC003 --> tmdb : <<include>>
+UC004 --> tmdb : <<include>>
+UC005 --> tmdb : <<include>>
+UC006 --> tmdb : <<include>>
+UC007 --> tmdb : <<include>>
+UC008 --> tmdb : <<include>>
+UC009 --> tmdb : <<include>>
+UC010 --> tmdb : <<include>>
+UC011 --> tmdb : <<include>>
+UC012 --> tmdb : <<include>>
+UC013 --> tmdb : <<include>>
+
+' Casos de uso que requieren email
+UC038 --> email : <<include>>
+UC041 --> email : <<include>>
+UC042 --> email : <<include>>
+
+' ============================================================================
+' RELACIONES DE EXTENSIÓN Y INCLUSIÓN
+' ============================================================================
+
+' Extensiones para usuarios registrados
+UC001 ..> UC014 : <<extend>>\n[usuario registrado]
+UC008 ..> UC015 : <<extend>>\n[no es favorito]
+UC008 ..> UC016 : <<extend>>\n[es favorito]
+UC017 ..> UC018 : <<extend>>\n[calificar]
+UC017 ..> UC019 : <<extend>>\n[agregar notas]
+UC026 ..> UC029 : <<include>>
+
+' Validaciones y autenticación
+UC015 ..> UC039 : <<include>>\n[requiere login]
+UC026 ..> UC039 : <<include>>\n[requiere login]
+UC044 ..> UC045 : <<extend>>\n[cambiar contraseña]
+
+' Funcionalidades de administración
+UC058 ..> UC055 : <<include>>
+UC062 ..> UC059 : <<include>>
+
+' ============================================================================
+' CASOS DE USO OFFLINE (PWA)
+' ============================================================================
+
+package "Funcionalidad Offline" {
+    
+    (Ver favoritos offline) as UC065
+    (Ver listas offline) as UC066
+    (Buscar en datos locales) as UC067
+    (Sincronizar al conectar) as UC068
+    
+    note right of UC065 : Acceso a favoritos guardados\nlocalmente sin conexión
+    note right of UC068 : Sincronización automática\ncuando se restaura conexión
+}
+
+' Relaciones offline
+user --> UC065
+user --> UC066
+user --> UC067
+user --> UC068
+
+' ============================================================================
+' RESTRICCIONES Y REGLAS DE NEGOCIO
+' ============================================================================
+
+note top of "Búsqueda y Exploración de Películas" : **REGLAS DE BÚSQUEDA**\n- Máximo 40 requests/segundo a TMDB\n- Cache de resultados por 2 horas\n- Búsqueda mínima 3 caracteres\n- Autocompletado desde caché local
+
+note top of "Gestión de Favoritos" : **REGLAS DE FAVORITOS**\n- Máximo 1000 favoritos por usuario\n- Calificación personal 1-10\n- Notas máximo 500 caracteres\n- Sincronización automática
+
+note top of "Listas Personalizadas" : **REGLAS DE LISTAS**\n- Máximo 50 listas por usuario\n- Máximo 200 películas por lista\n- Nombre único por usuario\n- Listas públicas moderadas
+
+note top of "Gestión de Usuario" : **REGLAS DE USUARIO**\n- Email único en el sistema\n- Contraseña mínimo 8 caracteres\n- Verificación email obligatoria\n- Sesión expire en 7 días
+
+note bottom : **CINE SCOPE - CASOS DE USO**\nSistema completo de gestión de películas\nIntegración optimizada con TMDB API\nFuncionalidad offline con PWA\nGestión personal de favoritos y listas\nInterfaz responsive y accesible\nGenerado: 2025-08-23 01:41:17 UTC por ShivaAtom
+
+@enduml

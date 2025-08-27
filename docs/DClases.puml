@@ -1,0 +1,571 @@
+@startuml DiagramaClases_CineScope
+!theme plain
+
+title Cine Scope - Diagrama de Clases\nAplicación de Búsqueda y Gestión de Películas\nGenerado: 2025-08-23 01:28:35 UTC por ShivaAtom
+
+' ============================================================================
+' CLASES DE ENTIDADES DEL DOMINIO
+' ============================================================================
+
+package "Domain Entities" {
+    
+    class User {
+        - userId: UUID
+        - username: string
+        - email: string
+        - passwordHash: string
+        - firstName: string
+        - lastName: string
+        - avatarUrl: string
+        - preferredLanguage: string
+        - isActive: boolean
+        - isVerified: boolean
+        - createdAt: Date
+        - updatedAt: Date
+        - lastLogin: Date
+        --
+        + constructor(userData: UserData)
+        + validateEmail(): boolean
+        + validateUsername(): boolean
+        + setPassword(password: string): void
+        + checkPassword(password: string): boolean
+        + updateProfile(profileData: UserProfile): void
+        + activate(): void
+        + deactivate(): void
+        + updateLastLogin(): void
+        + getFullName(): string
+        + isValidSession(): boolean
+    }
+    
+    class Movie {
+        - movieId: number
+        - tmdbId: number
+        - title: string
+        - originalTitle: string
+        - overview: string
+        - releaseDate: Date
+        - runtime: number
+        - adult: boolean
+        - originalLanguage: string
+        - popularity: number
+        - voteAverage: number
+        - voteCount: number
+        - posterPath: string
+        - backdropPath: string
+        - budget: number
+        - revenue: number
+        - tagline: string
+        - homepage: string
+        - imdbId: string
+        - status: string
+        - createdAt: Date
+        - updatedAt: Date
+        - genres: Genre[]
+        - productionCompanies: ProductionCompany[]
+        --
+        + constructor(movieData: MovieData)
+        + getFullPosterUrl(): string
+        + getFullBackdropUrl(): string
+        + calculateRating(): number
+        + isReleased(): boolean
+        + getFormattedRuntime(): string
+        + getFormattedBudget(): string
+        + getFormattedRevenue(): string
+        + addGenre(genre: Genre): void
+        + removeGenre(genreId: number): void
+        + updateFromTMDB(tmdbData: TMDBMovieData): void
+        + getLocalizedTitle(language: string): string
+        + getAgeRating(): string
+    }
+    
+    class Genre {
+        - genreId: number
+        - tmdbGenreId: number
+        - name: string
+        - nameEs: string
+        - nameEn: string
+        - description: string
+        - iconName: string
+        - colorHex: string
+        - isActive: boolean
+        - sortOrder: number
+        --
+        + constructor(genreData: GenreData)
+        + getLocalizedName(language: string): string
+        + activate(): void
+        + deactivate(): void
+        + updateSortOrder(order: number): void
+    }
+    
+    class UserFavorite {
+        - favoriteId: UUID
+        - userId: UUID
+        - movieId: number
+        - personalRating: number
+        - personalNotes: string
+        - isWatched: boolean
+        - watchedAt: Date
+        - rewatchCount: number
+        - addedAt: Date
+        - updatedAt: Date
+        --
+        + constructor(favoriteData: FavoriteData)
+        + setRating(rating: number): void
+        + addNotes(notes: string): void
+        + markAsWatched(): void
+        + markAsUnwatched(): void
+        + incrementRewatch(): void
+        + updateNotes(notes: string): void
+    }
+    
+    class UserList {
+        - listId: UUID
+        - userId: UUID
+        - listName: string
+        - description: string
+        - coverImageUrl: string
+        - isPublic: boolean
+        - isDefault: boolean
+        - allowDuplicates: boolean
+        - defaultSortOrder: string
+        - movieCount: number
+        - totalRuntime: number
+        - createdAt: Date
+        - updatedAt: Date
+        - items: UserListItem[]
+        --
+        + constructor(listData: ListData)
+        + addMovie(movieId: number, notes?: string): void
+        + removeMovie(movieId: number): void
+        + updateMovieOrder(movieId: number, order: number): void
+        + makePublic(): void
+        + makePrivate(): void
+        + updateMovieCount(): void
+        + calculateTotalRuntime(): number
+        + sortItems(sortType: string): void
+        + validateListName(): boolean
+    }
+    
+    class UserListItem {
+        - listItemId: UUID
+        - listId: UUID
+        - movieId: number
+        - personalNotes: string
+        - customSortOrder: number
+        - addedAt: Date
+        --
+        + constructor(itemData: ListItemData)
+        + updateNotes(notes: string): void
+        + updateSortOrder(order: number): void
+    }
+    
+    class SearchHistory {
+        - searchId: UUID
+        - userId: UUID
+        - searchQuery: string
+        - searchFilters: object
+        - searchType: string
+        - resultsCount: number
+        - selectedMovieId: number
+        - ipAddress: string
+        - userAgent: string
+        - responseTimeMs: number
+        - searchTimestamp: Date
+        --
+        + constructor(searchData: SearchData)
+        + getFormattedFilters(): string
+        + isRecentSearch(): boolean
+    }
+}
+
+' ============================================================================
+' CLASES DE SERVICIOS DE APLICACIÓN
+' ============================================================================
+
+package "Application Services" {
+    
+    class UserService {
+        - userRepository: UserRepository
+        - passwordService: PasswordService
+        - emailService: EmailService
+        --
+        + createUser(userData: UserRegistrationData): Promise<User>
+        + authenticateUser(username: string, password: string): Promise<AuthResult>
+        + getUserById(userId: UUID): Promise<User>
+        + getUserByUsername(username: string): Promise<User>
+        + getUserByEmail(email: string): Promise<User>
+        + updateUserProfile(userId: UUID, profileData: UserProfile): Promise<User>
+        + changePassword(userId: UUID, oldPassword: string, newPassword: string): Promise<void>
+        + deactivateUser(userId: UUID): Promise<void>
+        + sendVerificationEmail(userId: UUID): Promise<void>
+        + verifyUserEmail(token: string): Promise<boolean>
+        + resetPassword(email: string): Promise<void>
+        + updateLastLogin(userId: UUID): Promise<void>
+    }
+    
+    class MovieService {
+        - movieRepository: MovieRepository
+        - tmdbService: TMDBService
+        - cacheService: CacheService
+        --
+        + searchMovies(query: string, filters: SearchFilters): Promise<SearchResult>
+        + getMovieById(movieId: number): Promise<Movie>
+        + getMovieByTMDBId(tmdbId: number): Promise<Movie>
+        + getPopularMovies(page: number): Promise<Movie[]>
+        + getMoviesByGenre(genreId: number, page: number): Promise<Movie[]>
+        + updateMovieFromTMDB(tmdbId: number): Promise<Movie>
+        + getMovieDetails(tmdbId: number): Promise<MovieDetails>
+        + getMovieCredits(tmdbId: number): Promise<MovieCredits>
+        + getMovieImages(tmdbId: number): Promise<MovieImages>
+        + getMovieVideos(tmdbId: number): Promise<MovieVideos>
+        + getMovieReviews(tmdbId: number): Promise<MovieReviews>
+        + getRecommendations(tmdbId: number): Promise<Movie[]>
+        + getSimilarMovies(tmdbId: number): Promise<Movie[]>
+    }
+    
+    class FavoriteService {
+        - favoriteRepository: FavoriteRepository
+        - movieService: MovieService
+        - notificationService: NotificationService
+        --
+        + addToFavorites(userId: UUID, movieId: number): Promise<UserFavorite>
+        + removeFromFavorites(userId: UUID, movieId: number): Promise<void>
+        + getUserFavorites(userId: UUID, pagination: Pagination): Promise<UserFavorite[]>
+        + isFavorite(userId: UUID, movieId: number): Promise<boolean>
+        + updateFavoriteRating(favoriteId: UUID, rating: number): Promise<UserFavorite>
+        + updateFavoriteNotes(favoriteId: UUID, notes: string): Promise<UserFavorite>
+        + markAsWatched(favoriteId: UUID): Promise<UserFavorite>
+        + getFavoritesByGenre(userId: UUID, genreId: number): Promise<UserFavorite[]>
+        + getFavoriteStatistics(userId: UUID): Promise<FavoriteStats>
+        + exportFavorites(userId: UUID, format: string): Promise<string>
+    }
+    
+    class ListService {
+        - listRepository: ListRepository
+        - listItemRepository: ListItemRepository
+        - movieService: MovieService
+        --
+        + createList(userId: UUID, listData: ListCreationData): Promise<UserList>
+        + getUserLists(userId: UUID): Promise<UserList[]>
+        + getListById(listId: UUID): Promise<UserList>
+        + updateList(listId: UUID, listData: ListUpdateData): Promise<UserList>
+        + deleteList(listId: UUID): Promise<void>
+        + addMovieToList(listId: UUID, movieId: number, notes?: string): Promise<UserListItem>
+        + removeMovieFromList(listId: UUID, movieId: number): Promise<void>
+        + updateListItemOrder(listId: UUID, movieId: number, order: number): Promise<void>
+        + getPublicLists(pagination: Pagination): Promise<UserList[]>
+        + shareList(listId: UUID): Promise<string>
+        + duplicateList(listId: UUID, newName: string): Promise<UserList>
+    }
+    
+    class TMDBService {
+        - apiKey: string
+        - baseUrl: string
+        - httpClient: HttpClient
+        - cacheService: CacheService
+        --
+        + searchMovies(query: string, page: number): Promise<TMDBSearchResult>
+        + getMovieDetails(tmdbId: number): Promise<TMDBMovieDetails>
+        + getPopularMovies(page: number): Promise<TMDBMovieResult[]>
+        + getTopRatedMovies(page: number): Promise<TMDBMovieResult[]>
+        + getNowPlayingMovies(page: number): Promise<TMDBMovieResult[]>
+        + getUpcomingMovies(page: number): Promise<TMDBMovieResult[]>
+        + getMoviesByGenre(genreId: number, page: number): Promise<TMDBMovieResult[]>
+        + getGenres(): Promise<TMDBGenre[]>
+        + getMovieCredits(tmdbId: number): Promise<TMDBCredits>
+        + getMovieImages(tmdbId: number): Promise<TMDBImages>
+        + getMovieVideos(tmdbId: number): Promise<TMDBVideos>
+        + getMovieReviews(tmdbId: number): Promise<TMDBReviews>
+        + getConfiguration(): Promise<TMDBConfiguration>
+        - makeRequest(endpoint: string, params: object): Promise<any>
+        - handleRateLimit(): Promise<void>
+    }
+    
+    class CacheService {
+        - redisClient: RedisClient
+        - defaultTTL: number
+        --
+        + get<T>(key: string): Promise<T | null>
+        + set(key: string, value: any, ttl?: number): Promise<void>
+        + delete(key: string): Promise<void>
+        + exists(key: string): Promise<boolean>
+        + invalidatePattern(pattern: string): Promise<void>
+        + getMovieCache(tmdbId: number, type: string): Promise<any>
+        + setMovieCache(tmdbId: number, type: string, data: any): Promise<void>
+        + clearUserCache(userId: UUID): Promise<void>
+        + getSearchCache(query: string, filters: object): Promise<any>
+        + setSearchCache(query: string, filters: object, results: any): Promise<void>
+    }
+    
+    class SearchService {
+        - movieService: MovieService
+        - searchHistoryRepository: SearchHistoryRepository
+        - cacheService: CacheService
+        --
+        + searchMovies(query: string, filters: SearchFilters, userId?: UUID): Promise<SearchResult>
+        + getSearchSuggestions(query: string): Promise<string[]>
+        + getPopularSearches(): Promise<string[]>
+        + getUserSearchHistory(userId: UUID): Promise<SearchHistory[]>
+        + saveSearchHistory(searchData: SearchData): Promise<SearchHistory>
+        + clearSearchHistory(userId: UUID): Promise<void>
+        + getAdvancedSearch(filters: AdvancedFilters): Promise<SearchResult>
+        + getAutocompleteSuggestions(query: string): Promise<AutocompleteResult[]>
+    }
+}
+
+' ============================================================================
+' CLASES DE CONTROLADORES (API)
+' ============================================================================
+
+package "API Controllers" {
+    
+    class AuthController {
+        - userService: UserService
+        - jwtService: JWTService
+        - validationService: ValidationService
+        --
+        + register(req: Request, res: Response): Promise<void>
+        + login(req: Request, res: Response): Promise<void>
+        + logout(req: Request, res: Response): Promise<void>
+        + refreshToken(req: Request, res: Response): Promise<void>
+        + forgotPassword(req: Request, res: Response): Promise<void>
+        + resetPassword(req: Request, res: Response): Promise<void>
+        + verifyEmail(req: Request, res: Response): Promise<void>
+        + getCurrentUser(req: Request, res: Response): Promise<void>
+    }
+    
+    class MovieController {
+        - movieService: MovieService
+        - searchService: SearchService
+        --
+        + searchMovies(req: Request, res: Response): Promise<void>
+        + getMovieDetails(req: Request, res: Response): Promise<void>
+        + getPopularMovies(req: Request, res: Response): Promise<void>
+        + getTopRatedMovies(req: Request, res: Response): Promise<void>
+        + getNowPlayingMovies(req: Request, res: Response): Promise<void>
+        + getUpcomingMovies(req: Request, res: Response): Promise<void>
+        + getMoviesByGenre(req: Request, res: Response): Promise<void>
+        + getMovieCredits(req: Request, res: Response): Promise<void>
+        + getMovieImages(req: Request, res: Response): Promise<void>
+        + getMovieVideos(req: Request, res: Response): Promise<void>
+        + getMovieReviews(req: Request, res: Response): Promise<void>
+        + getRecommendations(req: Request, res: Response): Promise<void>
+        + getSimilarMovies(req: Request, res: Response): Promise<void>
+    }
+    
+    class FavoriteController {
+        - favoriteService: FavoriteService
+        --
+        + addToFavorites(req: Request, res: Response): Promise<void>
+        + removeFromFavorites(req: Request, res: Response): Promise<void>
+        + getUserFavorites(req: Request, res: Response): Promise<void>
+        + updateFavoriteRating(req: Request, res: Response): Promise<void>
+        + updateFavoriteNotes(req: Request, res: Response): Promise<void>
+        + markAsWatched(req: Request, res: Response): Promise<void>
+        + getFavoriteStatistics(req: Request, res: Response): Promise<void>
+        + exportFavorites(req: Request, res: Response): Promise<void>
+    }
+    
+    class ListController {
+        - listService: ListService
+        --
+        + createList(req: Request, res: Response): Promise<void>
+        + getUserLists(req: Request, res: Response): Promise<void>
+        + getListDetails(req: Request, res: Response): Promise<void>
+        + updateList(req: Request, res: Response): Promise<void>
+        + deleteList(req: Request, res: Response): Promise<void>
+        + addMovieToList(req: Request, res: Response): Promise<void>
+        + removeMovieFromList(req: Request, res: Response): Promise<void>
+        + updateListItemOrder(req: Request, res: Response): Promise<void>
+        + getPublicLists(req: Request, res: Response): Promise<void>
+        + shareList(req: Request, res: Response): Promise<void>
+        + duplicateList(req: Request, res: Response): Promise<void>
+    }
+    
+    class UserController {
+        - userService: UserService
+        --
+        + getProfile(req: Request, res: Response): Promise<void>
+        + updateProfile(req: Request, res: Response): Promise<void>
+        + changePassword(req: Request, res: Response): Promise<void>
+        + uploadAvatar(req: Request, res: Response): Promise<void>
+        + getPreferences(req: Request, res: Response): Promise<void>
+        + updatePreferences(req: Request, res: Response): Promise<void>
+        + deactivateAccount(req: Request, res: Response): Promise<void>
+    }
+}
+
+' ============================================================================
+' CLASES DE REPOSITORIO (DATA ACCESS)
+' ============================================================================
+
+package "Data Access Layer" {
+    
+    interface IRepository<T> {
+        + findById(id: any): Promise<T | null>
+        + findAll(filters?: object): Promise<T[]>
+        + create(entity: T): Promise<T>
+        + update(id: any, entity: Partial<T>): Promise<T>
+        + delete(id: any): Promise<void>
+        + count(filters?: object): Promise<number>
+    }
+    
+    class UserRepository {
+        - database: Database
+        --
+        + findById(userId: UUID): Promise<User | null>
+        + findByUsername(username: string): Promise<User | null>
+        + findByEmail(email: string): Promise<User | null>
+        + create(user: User): Promise<User>
+        + update(userId: UUID, userData: Partial<User>): Promise<User>
+        + delete(userId: UUID): Promise<void>
+        + findActiveUsers(): Promise<User[]>
+        + updateLastLogin(userId: UUID): Promise<void>
+    }
+    
+    class MovieRepository {
+        - database: Database
+        --
+        + findById(movieId: number): Promise<Movie | null>
+        + findByTMDBId(tmdbId: number): Promise<Movie | null>
+        + searchByTitle(title: string): Promise<Movie[]>
+        + findByGenre(genreId: number, pagination: Pagination): Promise<Movie[]>
+        + findPopular(pagination: Pagination): Promise<Movie[]>
+        + create(movie: Movie): Promise<Movie>
+        + update(movieId: number, movieData: Partial<Movie>): Promise<Movie>
+        + upsertFromTMDB(tmdbData: TMDBMovieData): Promise<Movie>
+    }
+    
+    class FavoriteRepository {
+        - database: Database
+        --
+        + findByUserAndMovie(userId: UUID, movieId: number): Promise<UserFavorite | null>
+        + findByUser(userId: UUID, pagination: Pagination): Promise<UserFavorite[]>
+        + create(favorite: UserFavorite): Promise<UserFavorite>
+        + update(favoriteId: UUID, favoriteData: Partial<UserFavorite>): Promise<UserFavorite>
+        + delete(favoriteId: UUID): Promise<void>
+        + countByUser(userId: UUID): Promise<number>
+        + findByGenre(userId: UUID, genreId: number): Promise<UserFavorite[]>
+    }
+    
+    class ListRepository {
+        - database: Database
+        --
+        + findByUser(userId: UUID): Promise<UserList[]>
+        + findById(listId: UUID): Promise<UserList | null>
+        + findPublicLists(pagination: Pagination): Promise<UserList[]>
+        + create(list: UserList): Promise<UserList>
+        + update(listId: UUID, listData: Partial<UserList>): Promise<UserList>
+        + delete(listId: UUID): Promise<void>
+        + findByName(userId: UUID, listName: string): Promise<UserList | null>
+    }
+    
+    class SearchHistoryRepository {
+        - database: Database
+        --
+        + findByUser(userId: UUID, limit: number): Promise<SearchHistory[]>
+        + create(searchHistory: SearchHistory): Promise<SearchHistory>
+        + deleteByUser(userId: UUID): Promise<void>
+        + findPopularQueries(limit: number): Promise<string[]>
+        + findRecentQueries(userId: UUID, limit: number): Promise<string[]>
+    }
+}
+
+' ============================================================================
+' CLASES UTILITARIAS
+' ============================================================================
+
+package "Utilities" {
+    
+    class ValidationService {
+        + validateEmail(email: string): boolean
+        + validatePassword(password: string): boolean
+        + validateUsername(username: string): boolean
+        + validateMovieData(movieData: any): ValidationResult
+        + validateSearchFilters(filters: any): ValidationResult
+        + sanitizeInput(input: string): string
+    }
+    
+    class JWTService {
+        - secretKey: string
+        - expirationTime: string
+        --
+        + generateToken(payload: object): string
+        + verifyToken(token: string): object | null
+        + refreshToken(token: string): string
+        + decodeToken(token: string): object | null
+    }
+    
+    class PasswordService {
+        + hashPassword(password: string): string
+        + comparePassword(password: string, hash: string): boolean
+        + generateRandomPassword(): string
+        + validatePasswordStrength(password: string): PasswordStrength
+    }
+    
+    class ImageService {
+        - tmdbImageBaseUrl: string
+        --
+        + getPosterUrl(posterPath: string, size: string): string
+        + getBackdropUrl(backdropPath: string, size: string): string
+        + getProfileUrl(profilePath: string, size: string): string
+        + optimizeImage(imageUrl: string, options: ImageOptions): string
+    }
+    
+    class PaginationService {
+        + createPagination(page: number, limit: number, total: number): Pagination
+        + validatePaginationParams(page: number, limit: number): boolean
+        + getOffset(page: number, limit: number): number
+    }
+}
+
+' ============================================================================
+' RELACIONES ENTRE CLASES
+' ============================================================================
+
+' Relaciones de composición y agregación
+User ||--o{ UserFavorite : "has many"
+User ||--o{ UserList : "creates"
+User ||--o{ SearchHistory : "performs"
+Movie ||--o{ UserFavorite : "favorited by"
+Movie }o--|| Genre : "belongs to"
+UserList ||--o{ UserListItem : "contains"
+Movie ||--o{ UserListItem : "included in"
+
+' Relaciones de servicios
+UserService --> UserRepository : "uses"
+MovieService --> MovieRepository : "uses"
+MovieService --> TMDBService : "uses"
+MovieService --> CacheService : "uses"
+FavoriteService --> FavoriteRepository : "uses"
+FavoriteService --> MovieService : "uses"
+ListService --> ListRepository : "uses"
+ListService --> MovieService : "uses"
+SearchService --> MovieService : "uses"
+SearchService --> CacheService : "uses"
+
+' Relaciones de controladores
+AuthController --> UserService : "uses"
+AuthController --> JWTService : "uses"
+MovieController --> MovieService : "uses"
+MovieController --> SearchService : "uses"
+FavoriteController --> FavoriteService : "uses"
+ListController --> ListService : "uses"
+UserController --> UserService : "uses"
+
+' Implementaciones de interfaces
+UserRepository ..|> IRepository : "implements"
+MovieRepository ..|> IRepository : "implements"
+FavoriteRepository ..|> IRepository : "implements"
+ListRepository ..|> IRepository : "implements"
+
+' Dependencias de utilidades
+UserService --> PasswordService : "uses"
+UserService --> ValidationService : "uses"
+AuthController --> ValidationService : "uses"
+MovieService --> ImageService : "uses"
+SearchService --> PaginationService : "uses"
+
+note bottom : **CINE SCOPE - DIAGRAMA DE CLASES**\nArquitectura en capas con separación clara de responsabilidades\nPatrón Repository para acceso a datos\nServicios de aplicación para lógica de negocio\nControladores REST para API endpoints\nUtilidades para funcionalidades transversales\nGenerado: 2025-08-23 01:28:35 UTC por ShivaAtom
+
+@enduml

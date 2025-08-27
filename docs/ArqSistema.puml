@@ -1,0 +1,58 @@
+@startuml Arquitectura_CineScope_General
+!theme plain
+
+title Cine Scope - Vista General de Arquitectura\nAplicación de Búsqueda y Gestión de Películas
+
+' Definición de capas principales
+package "FRONTEND" {
+    [React/Vue SPA] as frontend
+    [PWA Service Worker] as pwa
+    [Local Storage] as localStorage
+}
+
+package "BACKEND API" {
+    [Express.js API] as api
+    [JWT Auth] as auth
+    [Rate Limiting] as rateLimit
+}
+
+package "SERVICES" {
+    [Movie Service] as movieSvc
+    [User Service] as userSvc
+    [Favorites Service] as favSvc
+    [Cache Service] as cacheSvc
+}
+
+package "DATA LAYER" {
+    database "SQLite/PostgreSQL" as db
+    database "Redis Cache" as redis
+}
+
+package "EXTERNAL" {
+    [TMDB API] as tmdb
+    [Email Service] as email
+}
+
+' Conexiones principales
+frontend --> api : "HTTPS/REST"
+frontend --> pwa : "Offline Support"
+frontend --> localStorage : "Local Data"
+
+api --> auth : "Authentication"
+api --> rateLimit : "Protection"
+api --> movieSvc : "Movie Operations"
+api --> userSvc : "User Operations"
+api --> favSvc : "Favorites"
+
+movieSvc --> tmdb : "External API"
+movieSvc --> cacheSvc : "Cache Layer"
+userSvc --> db : "User Data"
+favSvc --> db : "Favorites Data"
+cacheSvc --> redis : "Cache Storage"
+
+userSvc --> email : "Notifications"
+
+note right of api : Punto único de entrada\nAutenticación JWT\nRate limiting
+note bottom of db : Base de datos principal\nUsuarios y favoritos\nCache de películas
+
+@enduml
